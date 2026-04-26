@@ -1,0 +1,1 @@
+# stechome-ha-integration
