@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurar Stechome",
+        "description": "Introduce tus credenciales. El ID de tu piso se detectará automáticamente.",
+        "data": {
+          "username": "Correo electrónico",
+          "password": "Contraseña"
+        }
+      }
+    },
+    "error": {
+      "auth_error": "Usuario, contraseña o ID de piso no encontrados.",
+      "cannot_connect": "Error de conexión con Stechome."
+    }
+  },
+  "services": {
+    "import_history": {
+      "name": "Importar consumo histórico",
+      "description": "Obtiene las lecturas diarias de un mes específico desde la API de Stechome e inyecta los datos directamente en las estadísticas de Home Assistant para que aparezcan en el panel de Energía.",
+      "fields": {
+        "year": {
+          "name": "Año",
+          "description": "Año a importar (p.ej. 2026)."
+        },
+        "month": {
+          "name": "Mes",
+          "description": "Mes a importar en número (1-12)."
+        }
+      }
+    }
+  }
+}

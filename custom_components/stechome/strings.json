@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Stechome Configuration",
+        "description": "Enter your credentials. Your Floor ID will be detected automatically.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "auth_error": "Could not login or find Floor ID. Please check your credentials.",
+      "cannot_connect": "Connection error."
+    }
+  },
+  "services": {
+    "import_history": {
+      "name": "Import historical consumption",
+      "description": "Fetches daily readings for a specific month from the Stechome API and injects them into Home Assistant statistics so they appear in the Energy dashboard.",
+      "fields": {
+        "year": {
+          "name": "Year",
+          "description": "Year to import (e.g. 2026)."
+        },
+        "month": {
+          "name": "Month",
+          "description": "Month to import as a number (1-12)."
+        }
+      }
+    }
+  }
+}

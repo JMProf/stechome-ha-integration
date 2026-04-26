@@ -1,0 +1,12 @@
+{
+  "domain": "stechome",
+  "name": "Stechome",
+  "config_flow": true,
+  "documentation": "https://github.com/jmprof/stechome-ha-integration",
+  "issue_tracker": "https://github.com/jmprof/stechome-ha-integration/issues",
+  "version": "1.0.0",
+  "iot_class": "cloud_polling",
+  "codeowners": ["@jmprof"],
+  "requirements": ["async_timeout"],
+  "is_built_in": false
+}
