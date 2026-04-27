@@ -20,9 +20,9 @@ class StechomeDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name=DOMAIN,
-            # Refresco de estado cada 6 h como red de seguridad.
-            # La importación de estadísticas la gestiona el scheduler diario en __init__.py
-            update_interval=timedelta(hours=6),
+            # Sin polling automático: los datos solo se actualizan mediante
+            # importación manual (botón) o el scheduler diario configurado por el usuario.
+            update_interval=None,
         )
 
     def _to_float(self, value):

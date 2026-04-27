@@ -105,8 +105,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api = StechomeAPI(entry.data["username"], entry.data["password"], hass)
     coordinator = StechomeDataUpdateCoordinator(hass, api, entry.data["id_piso"])
 
-    await coordinator.async_config_entry_first_refresh()
-
     entity_reg = er.async_get(hass)
     for legacy_unique_id in (
         f"{coordinator.id_piso}_LECTURA_ACS",
