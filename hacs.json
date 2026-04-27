@@ -2,7 +2,8 @@
   "name": "Stechome",
   "content_in_root": false,
   "render_readme": true,
-  "zip_release": false,
+  "zip_release": true,
+  "filename": "stechome.zip",
   "country": [
     "ES"
   ],
