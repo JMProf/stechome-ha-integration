@@ -2,7 +2,7 @@ import aiohttp
 import logging
 import async_timeout
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -121,6 +121,19 @@ class StechomeAPI:
             id_piso,
             fecha_inicio.strftime("%Y-%m-%d"),
             fecha_fin.strftime("%Y-%m-%d"),
+        )
+
+    async def async_get_data_range(self, id_piso, start_date, end_date):
+        """Petición de lecturas diarias en un rango inclusivo de fechas."""
+        if end_date < start_date:
+            return None
+
+        # La API usa fechafin exclusivo; sumamos un día para incluir end_date.
+        end_exclusive = end_date + timedelta(days=1)
+        return await self._fetch_lecturas(
+            id_piso,
+            start_date.strftime("%Y-%m-%d"),
+            end_exclusive.strftime("%Y-%m-%d"),
         )
 
     async def async_get_data_month(self, id_piso, year, month):

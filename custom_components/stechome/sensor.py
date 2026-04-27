@@ -1,12 +1,12 @@
 from homeassistant.components.sensor import (
-    SensorEntity,
     SensorDeviceClass,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfEnergy, UnitOfVolume
+from homeassistant.const import UnitOfVolume
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
+
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
@@ -15,21 +15,11 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             coordinator,
             config_entry,
             "LECTURA_ACS",
-            "Agua Caliente Sanitaria",
+            "ACS",
             UnitOfVolume.CUBIC_METERS,
             SensorDeviceClass.WATER,
             "series_acs",
             "consumo_mes_acs",
-        ),
-        StechomeSensor(
-            coordinator,
-            config_entry,
-            "LECTURA_CALEF",
-            "Calefacción",
-            UnitOfEnergy.KILO_WATT_HOUR,
-            SensorDeviceClass.ENERGY,
-            "series_calef",
-            "consumo_mes_calef",
         ),
     ]
     async_add_entities(sensors)
@@ -42,7 +32,7 @@ class StechomeSensor(CoordinatorEntity):
         self.series_key = series_key
         self.total_key = total_key
         self._attr_name = f"Stechome {name_suffix}"
-        self._attr_unique_id = f"{coordinator.id_piso}_{data_key}"
+        self._attr_unique_id = f"{coordinator.id_piso}_acs_v2"
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = device_class
         # total_increasing: HA almacena estadísticas y calcula deltas automáticamente

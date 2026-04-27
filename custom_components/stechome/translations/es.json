@@ -15,20 +15,19 @@
       "cannot_connect": "Error de conexión con Stechome."
     }
   },
-  "services": {
-    "import_history": {
-      "name": "Importar consumo histórico",
-      "description": "Obtiene las lecturas diarias de un mes específico desde la API de Stechome e inyecta los datos directamente en las estadísticas de Home Assistant para que aparezcan en el panel de Energía.",
-      "fields": {
-        "year": {
-          "name": "Año",
-          "description": "Año a importar (p.ej. 2026)."
-        },
-        "month": {
-          "name": "Mes",
-          "description": "Mes a importar en número (1-12)."
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ajustes de refresco diario",
+        "description": "Configura el refresco automatico diario para lecturas ACS.",
+        "data": {
+          "daily_refresh_time": "Hora de refresco diario (HH:MM)",
+          "daily_refresh_days_back": "Dias hacia atras hasta ayer (1-7)"
         }
       }
+    },
+    "error": {
+      "invalid_time": "Formato de hora invalido. Usa HH:MM."
     }
   }
 }

@@ -3,6 +3,11 @@ from homeassistant import config_entries
 from .const import DOMAIN
 from .api import StechomeAPI
 
+CONF_DAILY_REFRESH_TIME = "daily_refresh_time"
+CONF_DAILY_REFRESH_DAYS_BACK = "daily_refresh_days_back"
+DEFAULT_DAILY_REFRESH_TIME = "00:30"
+DEFAULT_DAILY_REFRESH_DAYS_BACK = 1
+
 class StechomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Flujo de configuración para Stechome."""
     VERSION = 1
@@ -34,3 +39,49 @@ class StechomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }),
             errors=errors
         )
+
+    @staticmethod
+    def async_get_options_flow(config_entry):
+        return StechomeOptionsFlow(config_entry)
+
+
+class StechomeOptionsFlow(config_entries.OptionsFlow):
+    """Opciones para refresco diario automático."""
+
+    def __init__(self, config_entry):
+        self._config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        errors = {}
+
+        if user_input is not None:
+            time_value = user_input[CONF_DAILY_REFRESH_TIME]
+            try:
+                parts = time_value.split(":")
+                if len(parts) != 2:
+                    raise ValueError
+                hh = int(parts[0])
+                mm = int(parts[1])
+                if not (0 <= hh <= 23 and 0 <= mm <= 59):
+                    raise ValueError
+            except (TypeError, ValueError):
+                errors[CONF_DAILY_REFRESH_TIME] = "invalid_time"
+
+            if not errors:
+                return self.async_create_entry(title="", data=user_input)
+
+        options = self._config_entry.options
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_DAILY_REFRESH_TIME,
+                    default=options.get(CONF_DAILY_REFRESH_TIME, DEFAULT_DAILY_REFRESH_TIME),
+                ): str,
+                vol.Required(
+                    CONF_DAILY_REFRESH_DAYS_BACK,
+                    default=options.get(CONF_DAILY_REFRESH_DAYS_BACK, DEFAULT_DAILY_REFRESH_DAYS_BACK),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=7)),
+            }
+        )
+
+        return self.async_show_form(step_id="init", data_schema=data_schema, errors=errors)

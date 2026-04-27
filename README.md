@@ -1,19 +1,19 @@
 # Stechome for Home Assistant
 
-Integración personalizada para Home Assistant que conecta con la web de Stechome y crea sensores de consumo para agua caliente sanitaria (ACS) y calefacción.
+Integración personalizada para Home Assistant que conecta con la web de Stechome y crea un sensor de consumo acumulado para agua caliente sanitaria (ACS).
 
 La integración:
 - Hace login en Stechome con tus credenciales.
 - Detecta automáticamente tu `ID_PISO`.
-- Descarga lecturas del mes actual.
-- Publica sensores listos para estadísticas en Home Assistant.
-- Permite importar meses históricos para completar gráficas y panel de Energía.
+- Programa un refresco automático diario a la hora configurada.
+- Publica una entidad ACS lista para estadísticas en Home Assistant.
+- Permite importar histórico por rango de fechas desde los controles del propio dispositivo.
 
 ## Qué aporta esta integración
 
 - Sensores de consumo acumulado (tipo `total_increasing`) para que Home Assistant calcule consumos diarios, semanales y mensuales.
-- Actualización automática periódica (no necesitas lanzar consultas manualmente para el día a día).
-- Servicio para importar histórico mensual desde la API (`import_history`).
+- Actualización automática diaria configurable en opciones de la integración.
+- Controles de dispositivo para importar histórico por fecha inicio/fin.
 
 ## Requisitos
 
@@ -42,14 +42,25 @@ La integración:
 
 Si todo va bien, se creará un dispositivo con sus sensores asociados.
 
+## Refresco automático diario
+
+Puedes configurar en las opciones de la integración:
+- Hora diaria (`HH:MM`) usando la zona horaria de Home Assistant.
+- Días hacia atrás (`1` a `7`) para refrescar desde ese punto hasta ayer.
+
+Por defecto:
+- Hora: `00:30`
+- Días hacia atrás: `1` (solo ayer)
+
 ## Cómo funciona internamente
 
-- La integración se actualiza automáticamente de forma periódica.
-- En cada ciclo:
+- La integración se refresca automáticamente una vez al día a la hora configurada.
+- En cada refresco automático:
 	- Inicia sesión en Stechome.
-	- Consulta lecturas diarias por rango de fechas del mes actual.
-	- Obtiene la última lectura acumulada para ACS y calefacción.
-	- Actualiza sensores en Home Assistant.
+	- Consulta lecturas diarias del rango configurado (N días hasta ayer).
+	- Reimporta el rango para mantener coherencia con posibles solapes.
+	- Actualiza la lectura de la entidad ACS.
+	- Actualiza la entidad en Home Assistant.
 
 Esto permite que Home Assistant gestione estadísticas de largo plazo sin que tengas que recalcular nada manualmente.
 
@@ -59,29 +70,22 @@ Los sensores principales están pensados para estadísticas (`state_class: total
 
 Además, se incluyen atributos con información del mes actual (serie diaria, fecha, edificio, etc.) para análisis avanzado en dashboards.
 
-## Importar histórico de meses anteriores
+## Importar histórico por rango de fechas
 
-Puedes importar meses pasados (por ejemplo, marzo 2026) usando el servicio:
+Puedes importar histórico de ACS desde la propia ventana del dispositivo:
 
-- `stechome.import_history`
+1. Abre el dispositivo de Stechome.
+2. En la sección de controles, selecciona:
+	- Fecha inicio de importación.
+	- Fecha fin de importación.
+3. Pulsa el botón de importar ACS.
 
-Parámetros:
-- `year`: año a importar (ejemplo: `2026`)
-- `month`: mes a importar (`1` a `12`)
+Validaciones:
+- El rango máximo permitido por importación es de 90 días.
+- Los rangos solapados se normalizan por día y pueden reimportarse.
 
-Recomendación importante:
-- Importa en orden cronológico (del mes más antiguo al más reciente).
-
-Ejemplo:
-
-```yaml
-service: stechome.import_history
-data:
-	year: 2026
-	month: 3
-```
-
-Después de importar, Home Assistant incorporará esos datos en las estadísticas y podrás verlos en paneles y tarjetas históricas.
+Recomendación:
+- Importa en orden cronológico para mantener una serie consistente.
 
 ## Panel de Energía
 
@@ -91,15 +95,7 @@ Para sacar el máximo partido:
 2. En la sección de agua/energía térmica, selecciona los sensores de Stechome.
 3. Deja que Home Assistant calcule los consumos por diferencia entre lecturas acumuladas.
 
-Consejo:
-- Este enfoque es más robusto que guardar solo consumos diarios calculados externamente.
-
-## Buenas prácticas
-
-- No compartas credenciales reales en el repositorio.
-- Si cambias contraseña en Stechome, vuelve a configurar la integración si fuese necesario.
-- Mantén Home Assistant y HACS actualizados.
-- Revisa logs de Home Assistant si observas datos vacíos o cortes puntuales.
+Este enfoque es más robusto que guardar solo consumos diarios calculados externamente.
 
 ## Resolución de problemas
 
@@ -109,11 +105,10 @@ Consejo:
 - Reinicia Home Assistant tras actualizar archivos de la integración.
 - Revisa logs para ver respuesta HTTP y contenido devuelto por Stechome.
 
-### El servicio `import_history` no aparece o falla
+### La importación desde controles no aparece o falla
 
 - Asegúrate de haber reiniciado Home Assistant después de instalar/actualizar.
-- Comprueba que el dominio del servicio es `stechome`.
-- Verifica que envías `year` y `month` con valores válidos.
+- Verifica que las fechas sean válidas y que el rango no supere 90 días.
 
 ### No veo datos en Energía
 
