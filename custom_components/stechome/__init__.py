@@ -2,6 +2,7 @@ import logging
 from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.components import persistent_notification
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
@@ -15,6 +16,31 @@ CONF_DAILY_REFRESH_TIME = "daily_refresh_time"
 CONF_DAILY_REFRESH_DAYS_BACK = "daily_refresh_days_back"
 DEFAULT_DAILY_REFRESH_TIME = "00:30"
 DEFAULT_DAILY_REFRESH_DAYS_BACK = 1
+
+
+def _notification_id(entry: ConfigEntry) -> str:
+    return f"{DOMAIN}_refresh_error_{entry.entry_id}"
+
+
+async def _async_create_refresh_error_notification(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    error_text: str,
+) -> None:
+    persistent_notification.async_create(
+        hass,
+        (
+            "Stechome no pudo completar el refresco diario.\\n\\n"
+            f"Error: {error_text}\\n\\n"
+            "La integracion seguira reintentando automaticamente."
+        ),
+        title="Stechome: error de refresco",
+        notification_id=_notification_id(entry),
+    )
+
+
+async def _async_dismiss_refresh_error_notification(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    persistent_notification.async_dismiss(hass, _notification_id(entry))
 
 
 def _get_daily_options(entry: ConfigEntry) -> tuple[int, int, int]:
@@ -35,20 +61,37 @@ def _get_daily_options(entry: ConfigEntry) -> tuple[int, int, int]:
     return hour, minute, days_back
 
 
-async def _async_daily_refresh(hass: HomeAssistant, coordinator: StechomeDataUpdateCoordinator, days_back: int) -> None:
+async def _async_daily_refresh(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    coordinator: StechomeDataUpdateCoordinator,
+    days_back: int,
+) -> None:
     today = dt_util.now().date()
     end = today - timedelta(days=1)
     start = end - timedelta(days=days_back - 1)
     if end < start:
         _LOGGER.warning("Refresco diario omitido por rango inválido: %s a %s", start, end)
         return
-    await coordinator.async_import_acs_range(start, end)
-    await coordinator.async_request_refresh()
+    try:
+        await coordinator.async_import_acs_range(start, end)
+        await coordinator.async_request_refresh()
+        await _async_dismiss_refresh_error_notification(hass, entry)
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.error("Refresco diario Stechome fallido: %s", exc)
+        await _async_create_refresh_error_notification(hass, entry, str(exc))
 
 
-def _schedule_daily_refresh(hass: HomeAssistant, coordinator: StechomeDataUpdateCoordinator, hour: int, minute: int, days_back: int):
+def _schedule_daily_refresh(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    coordinator: StechomeDataUpdateCoordinator,
+    hour: int,
+    minute: int,
+    days_back: int,
+):
     def _on_time(_now):
-        hass.async_create_task(_async_daily_refresh(hass, coordinator, days_back))
+        hass.async_create_task(_async_daily_refresh(hass, entry, coordinator, days_back))
 
     return async_track_time_change(hass, _on_time, hour=hour, minute=minute, second=0)
 
@@ -81,6 +124,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hour, minute, days_back = _get_daily_options(entry)
     coordinator.unsub_daily_refresh = _schedule_daily_refresh(
         hass,
+        entry,
         coordinator,
         hour,
         minute,
