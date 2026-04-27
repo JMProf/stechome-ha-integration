@@ -1,27 +1,52 @@
-# Stechome for Home Assistant
+# stechome-ha-integration
 
-Integración personalizada para Home Assistant que conecta con la web de Stechome y crea un sensor de consumo acumulado para agua caliente sanitaria (ACS).
+Integración no oficial para Home Assistant que conecta con la web de Stechome y crea un sensor de consumo acumulado para agua caliente sanitaria (ACS).
 
-La integración:
-- Hace login en Stechome con tus credenciales.
-- Detecta automáticamente tu `ID_PISO`.
-- Programa un refresco automático diario a la hora configurada.
-- Publica una entidad ACS lista para estadísticas en Home Assistant.
-- Permite importar histórico por rango de fechas desde los controles del propio dispositivo.
+La integración está pensada para registrar el consumo de ACS dentro del panel de Energía de Home Assistant.
 
-## Qué aporta esta integración
+## Índice
 
-- Sensores de consumo acumulado (tipo `total_increasing`) para que Home Assistant calcule consumos diarios, semanales y mensuales.
-- Actualización automática diaria configurable en opciones de la integración.
-- Controles de dispositivo para importar histórico por fecha inicio/fin.
+- [Vista del panel de Energía](#vista-del-panel-de-energía)
+- [Características funcionales](#características-funcionales)
+- [Limitaciones](#limitaciones)
+- [Instalación](#instalación)
+  - [Requisitos](#requisitos)
+  - [Instalación con HACS (recomendado)](#instalación-con-hacs-recomendado)
+  - [Instalación manual](#instalación-manual)
+- [Configuración](#configuración)
+  - [Añadir integración](#añadir-integración)
+  - [Refresco automático diario](#refresco-automático-diario)
+  - [Importación de histórico de datos](#importación-de-histórico-de-datos)
+  - [Integración en el panel de Energía](#integración-en-el-panel-de-energía)
+- [Cómo funciona internamente](#cómo-funciona-internamente)
+- [FAQ](#faq)
 
-## Requisitos
+## Vista del panel de Energía
 
-- Home Assistant con `recorder` activo (necesario para estadísticas y panel de Energía).
-- HACS instalado.
-- Cuenta válida en Stechome.
+![Vista del panel de Energía](assets/agua.png)
 
-## Instalación con HACS (repositorio personalizado)
+
+## Características funcionales
+
+- Crea un sensor de consumo acumulado para que el panel de Energía de Home Assistant calcule los consumos diarios de ACS.
+- Actualización automática diaria configurable en las opciones de la integración.
+- Importación de lecturas anteriores de hasta 90 días.
+
+## Limitaciones
+
+- Por ahora, únicamente se puede registrar el consumo de ACS. Próximamente se añadirá el consumo de calefacción.
+- El consumo de agua **no se mide en tiempo real**, pues la API de Stechome publica la lectura a día vencido, es decir, sólo es posible ver el consumo total de un día anterior.
+- La integración funciona cuando se tiene un único piso dentro del servicio de Stechome.
+
+## Instalación
+
+### Requisitos
+
+- Home Assistant con `recorder` activo (activado por defecto).
+- HACS, si se utiliza ese método de instalación.
+- Cuenta válida en https://stechome.net.
+
+### Instalación con HACS (recomendado)
 
 1. Abre HACS en Home Assistant.
 2. Entra en el menú de 3 puntos (arriba a la derecha) y elige `Custom repositories`.
@@ -32,17 +57,27 @@ La integración:
 6. Busca `Stechome` dentro de HACS e instálalo.
 7. Reinicia Home Assistant.
 
-## Configuración inicial
+### Instalación manual
+
+1. Descarga el release y descomprímelo.
+2. En Home Assistant, dentro de la carpeta `custom_components`, crea una carpeta llamada `stechome`.
+3. Sube a esa carpeta el contenido de la carpeta `stechome`.
+4. Reinicia Home Assistant.
+
+Ten en cuenta que, con este método, la integración no se actualizará automáticamente.
+
+## Configuración
+
+### Añadir integración
 
 1. Ve a `Settings > Devices & Services`.
 2. Pulsa `Add Integration`.
 3. Busca `Stechome`.
 4. Introduce tu email y contraseña de Stechome.
-5. La integración valida el login y detecta el `ID_PISO` automáticamente.
 
 Si todo va bien, se creará un dispositivo con sus sensores asociados.
 
-## Refresco automático diario
+### Refresco automático diario
 
 Puedes configurar en las opciones de la integración:
 - Hora diaria (`HH:MM`) usando la zona horaria de Home Assistant.
@@ -50,7 +85,25 @@ Puedes configurar en las opciones de la integración:
 
 Por defecto:
 - Hora: `00:30`
-- Días hacia atrás: `1` (solo ayer)
+- Días hacia atrás: `1` (sólo ayer)
+
+### Importación de histórico de datos
+
+1. Abre el dispositivo de Stechome.
+2. En la sección de controles, selecciona:
+	- Fecha inicio de importación.
+	- Fecha fin de importación.
+3. Pulsa el botón de importar ACS.
+
+Consideraciones:
+
+- El rango máximo permitido por importación es de 90 días.
+- Los rangos solapados se normalizan por día y pueden reimportarse.
+
+### Integración en el panel de Energía
+
+1. Ve a `Settings > Dashboards > Energy`.
+2. En la sección de agua, selecciona el sensor `ACS` de Stechome. No importa que su estado sea "Desconocido".
 
 ## Cómo funciona internamente
 
@@ -64,69 +117,20 @@ Por defecto:
 
 Esto permite que Home Assistant gestione estadísticas de largo plazo sin que tengas que recalcular nada manualmente.
 
-## Sensores y estadísticas
+## FAQ
 
-Los sensores principales están pensados para estadísticas (`state_class: total_increasing`), lo que los hace aptos para análisis histórico y panel de Energía.
+**Me sale un error de autenticación**
 
-Además, se incluyen atributos con información del mes actual (serie diaria, fecha, edificio, etc.) para análisis avanzado en dashboards.
+> Verifica usuario y contraseña. Si ese no es el problema, puedes revisar los logs para ver respuesta la HTTP y el contenido devuelto por Stechome.
 
-## Importar histórico por rango de fechas
+**El sensor `ACS` se muestra como "Desconocido"**
 
-Puedes importar histórico de ACS desde la propia ventana del dispositivo:
+> Estoy trabajando en ello, de todas formas, no supone ningún problema para que el panel de Energía realice los calculos de consumo diarios.
 
-1. Abre el dispositivo de Stechome.
-2. En la sección de controles, selecciona:
-	- Fecha inicio de importación.
-	- Fecha fin de importación.
-3. Pulsa el botón de importar ACS.
+**Tengo algunos días sin consumo**
 
-Validaciones:
-- El rango máximo permitido por importación es de 90 días.
-- Los rangos solapados se normalizan por día y pueden reimportarse.
+> Revisa si ocurre lo mismo en la web de Stechome. Algunas veces tienen errores en sus lecturas. La integración sólo recoje los mismos datos que ellos publican.
 
-Recomendación:
-- Importa en orden cronológico para mantener una serie consistente.
+**El primer día importado me aparece con un consumo muy alto**
 
-## Panel de Energía
-
-Para sacar el máximo partido:
-
-1. Ve a `Settings > Dashboards > Energy`.
-2. En la sección de agua/energía térmica, selecciona los sensores de Stechome.
-3. Deja que Home Assistant calcule los consumos por diferencia entre lecturas acumuladas.
-
-Este enfoque es más robusto que guardar solo consumos diarios calculados externamente.
-
-## Resolución de problemas
-
-### Error de autenticación o `ID_PISO`
-
-- Verifica usuario y contraseña.
-- Reinicia Home Assistant tras actualizar archivos de la integración.
-- Revisa logs para ver respuesta HTTP y contenido devuelto por Stechome.
-
-### La importación desde controles no aparece o falla
-
-- Asegúrate de haber reiniciado Home Assistant después de instalar/actualizar.
-- Verifica que las fechas sean válidas y que el rango no supere 90 días.
-
-### No veo datos en Energía
-
-- Comprueba que `recorder` está activo.
-- Espera a que se acumulen muestras (puede tardar un poco en reflejarse).
-- Verifica que el sensor seleccionado es el de consumo acumulado correcto.
-
-## Estado del proyecto
-
-Proyecto en evolución. Se aceptan issues y sugerencias para mejorar:
-- Estabilidad de login y parseo de respuestas.
-- Mejora de importación histórica.
-- Mejoras de UX en entidades y acciones.
-
-## Contribuir
-
-1. Haz un fork del repositorio.
-2. Crea una rama para tu cambio.
-3. Abre un Pull Request con contexto técnico y pasos de prueba.
-
----
+> Home Assistant utiliza la diferencia entre las lecturas para calcular el consumo de un día. Como el primer día no tiene ninguno anterior, toma la lectura de ese día como lo que se consumió. El resto de días sí se calculan correctamente.
