@@ -1,5 +1,6 @@
 from homeassistant.components.sensor import (
     SensorDeviceClass,
+    SensorEntity,
     SensorStateClass,
 )
 from homeassistant.const import UnitOfVolume
@@ -25,7 +26,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     async_add_entities(sensors)
 
 
-class StechomeSensor(CoordinatorEntity):
+class StechomeSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, config_entry, data_key, name_suffix, unit, device_class, series_key, total_key):
         super().__init__(coordinator)
         self.data_key = data_key
@@ -43,6 +44,12 @@ class StechomeSensor(CoordinatorEntity):
             manufacturer="Stechome",
             model="Módulo de Contadores",
         )
+
+    @property
+    def available(self) -> bool:
+        if self.coordinator.data and self.coordinator.data.get(self.data_key) is not None:
+            return True
+        return super().available
 
     @property
     def native_value(self):

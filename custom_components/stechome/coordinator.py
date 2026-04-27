@@ -1,15 +1,17 @@
 from datetime import date, datetime, timedelta
 import logging
-import async_timeout
+from typing import Any
+
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
+
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class StechomeDataUpdateCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, api, id_piso):
+class StechomeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+    def __init__(self, hass, api, id_piso: str) -> None:
         self.api = api
         self.id_piso = id_piso
         self.unsub_daily_refresh = None
@@ -20,18 +22,18 @@ class StechomeDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name=DOMAIN,
-            # Refresco de estado cada 6 h como red de seguridad.
-            # La importación de estadísticas la gestiona el scheduler diario en __init__.py
-            update_interval=timedelta(hours=6),
+            # Sin polling automático: los datos solo se actualizan mediante
+            # importación manual (botón) o el scheduler diario configurado por el usuario.
+            update_interval=None,
         )
 
-    def _to_float(self, value):
+    def _to_float(self, value: Any) -> float | None:
         try:
             return float(str(value).replace(",", "."))
         except (TypeError, ValueError):
             return None
 
-    def _build_daily_series(self, lecturas, key):
+    def _build_daily_series(self, lecturas: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
         series = []
         prev = None
         for lectura in lecturas:
@@ -70,7 +72,7 @@ class StechomeDataUpdateCoordinator(DataUpdateCoordinator):
         """Importa ACS para un rango inclusivo de fechas."""
         try:
             from homeassistant.helpers import entity_registry as er
-            from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
+            from homeassistant.components.recorder.models import StatisticData, StatisticMetaData, StatisticMeanType
             from homeassistant.components.recorder.statistics import async_import_statistics
         except ImportError as exc:
             raise UpdateFailed("El componente recorder no está disponible") from exc
@@ -126,6 +128,8 @@ class StechomeDataUpdateCoordinator(DataUpdateCoordinator):
         metadata = StatisticMetaData(
             has_mean=False,
             has_sum=True,
+            mean_type=StatisticMeanType.NONE,
+            unit_class="volume",
             name="Stechome ACS",
             source="recorder",
             statistic_id=entity_id,
@@ -140,48 +144,17 @@ class StechomeDataUpdateCoordinator(DataUpdateCoordinator):
             end.isoformat(),
         )
 
-    async def _async_update_data(self):
-        """Actualiza el estado en vivo del sensor.
-
-        Intenta obtener la lectura de ayer. Si la API aún no la tiene disponible,
-        amplía la ventana hasta 7 días para garantizar que el sensor nunca quede
-        en estado 'unknown' por datos aún no procesados por Stechome.
-        """
-        today = dt_util.now().date()
-        yesterday = today - timedelta(days=1)
-
-        # Intentamos primero solo ayer; si la respuesta viene vacía, ampliamos
-        # la ventana a los últimos 7 días y cogemos la lectura más reciente.
-        for days_window in (1, 7):
-            start = yesterday - timedelta(days=days_window - 1)
-            try:
-                async with async_timeout.timeout(30):
-                    res = await self.api.async_get_data_range(self.id_piso, start, yesterday)
-            except Exception as err:
-                raise UpdateFailed(f"Error comunicando con Stechome: {err}") from err
-
-            if not res:
-                raise UpdateFailed("Sin respuesta de Stechome (login/cookies/respuesta invalida)")
-
-            lecturas = res.get("response", [])
-            if isinstance(lecturas, list) and lecturas:
-                lecturas_ordenadas = sorted(lecturas, key=lambda row: row.get("FECHA", ""))
-                acs_series = self._build_daily_series(lecturas_ordenadas, "LECTURA_ACS")
-                ultima = lecturas_ordenadas[-1]
-                _LOGGER.debug(
-                    "Estado ACS actualizado desde fecha %s (ventana %d dias)",
-                    ultima.get("FECHA"),
-                    days_window,
-                )
-                return {
-                    "LECTURA_ACS": self._to_float(ultima.get("LECTURA_ACS")),
-                    "series_acs": acs_series,
-                    "consumo_mes_acs": round(sum(x["consumo"] for x in acs_series), 3),
-                    "FECHA": ultima.get("FECHA"),
-                    "EDIFICIO": ultima.get("EDIFICIO"),
-                    "PISO": ultima.get("PISO"),
-                }
-
-            _LOGGER.debug("Sin lecturas en ventana de %d dias, ampliando...", days_window)
-
-        raise UpdateFailed("Stechome no devolvió lecturas en los últimos 7 dias")
+        # Actualizar el estado del sensor con la última lectura importada.
+        # Así el sensor sale de "Desconocido" aunque no haya nuevas lecturas
+        # disponibles en la API para el día actual.
+        rows_sorted = [by_day[k] for k in sorted(by_day.keys())]
+        acs_series = self._build_daily_series(rows_sorted, "LECTURA_ACS")
+        ultima = rows_sorted[-1]
+        self.async_set_updated_data({
+            "LECTURA_ACS": self._to_float(ultima.get("LECTURA_ACS")),
+            "series_acs": acs_series,
+            "consumo_mes_acs": round(sum(x["consumo"] for x in acs_series), 3),
+            "FECHA": ultima.get("FECHA"),
+            "EDIFICIO": ultima.get("EDIFICIO"),
+            "PISO": ultima.get("PISO"),
+        })

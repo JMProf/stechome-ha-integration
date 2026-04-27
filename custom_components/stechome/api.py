@@ -1,16 +1,16 @@
 import aiohttp
-import logging
-import async_timeout
 import json
-from datetime import datetime, timedelta
+import logging
+from datetime import date, timedelta
+from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class StechomeAPI:
-    def __init__(self, username, password, hass):
+    def __init__(self, username: str, password: str) -> None:
         self.username = username
         self.password = password
-        self.hass = hass
         self.base_url = "https://www.stechome.net/stechome-app/php"
         self.headers = {
             "accept": "application/json, text/javascript, */*; q=0.01",
@@ -22,7 +22,11 @@ class StechomeAPI:
             "referer": "https://www.stechome.net/stechome-app/"
         }
 
-    async def _parse_json_from_response(self, response, request_name):
+    async def _parse_json_from_response(
+        self,
+        response: aiohttp.ClientResponse,
+        request_name: str,
+    ) -> dict[str, Any] | None:
         """Parsea JSON incluso cuando el servidor responde con mimetype text/html."""
         text = await response.text()
         try:
@@ -38,7 +42,7 @@ class StechomeAPI:
             )
             return None
 
-    async def async_authenticate(self):
+    async def async_authenticate(self) -> str | None:
         """Valida login y obtiene el ID_PISO."""
         async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar()) as session:
             try:
@@ -78,11 +82,16 @@ class StechomeAPI:
                         _LOGGER.error("ID_PISO no encontrado en respuesta: %s", str(data)[:500])
                         return None
                     return str(id_piso)
-            except Exception as e:
-                _LOGGER.error("Error en autenticación: %s", e)
+            except Exception as err:
+                _LOGGER.error("Error en autenticación: %s", err)
                 return None
 
-    async def _fetch_lecturas(self, id_piso, fechaini_str, fechafin_str):
+    async def _fetch_lecturas(
+        self,
+        id_piso: str,
+        fechaini_str: str,
+        fechafin_str: str,
+    ) -> dict[str, Any] | None:
         """Petición interna de lecturas por rango de fechas."""
         async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar()) as session:
             try:
@@ -105,25 +114,16 @@ class StechomeAPI:
                         _LOGGER.error("mvc.php(lecturas) HTTP %s. Respuesta: %s", resp.status, text[:300])
                         return None
                     return await self._parse_json_from_response(resp, "mvc.php(lecturas)")
-            except Exception as e:
-                _LOGGER.error("Error obteniendo datos: %s", e)
+            except Exception as err:
+                _LOGGER.error("Error obteniendo datos: %s", err)
                 return None
 
-    async def async_get_data(self, id_piso):
-        """Petición de lecturas diarias del mes actual."""
-        now = datetime.now()
-        fecha_inicio = now.replace(day=1)
-        if fecha_inicio.month == 12:
-            fecha_fin = fecha_inicio.replace(year=fecha_inicio.year + 1, month=1)
-        else:
-            fecha_fin = fecha_inicio.replace(month=fecha_inicio.month + 1)
-        return await self._fetch_lecturas(
-            id_piso,
-            fecha_inicio.strftime("%Y-%m-%d"),
-            fecha_fin.strftime("%Y-%m-%d"),
-        )
-
-    async def async_get_data_range(self, id_piso, start_date, end_date):
+    async def async_get_data_range(
+        self,
+        id_piso: str,
+        start_date: date,
+        end_date: date,
+    ) -> dict[str, Any] | None:
         """Petición de lecturas diarias en un rango inclusivo de fechas."""
         if end_date < start_date:
             return None
@@ -134,18 +134,4 @@ class StechomeAPI:
             id_piso,
             start_date.strftime("%Y-%m-%d"),
             end_exclusive.strftime("%Y-%m-%d"),
-        )
-
-    async def async_get_data_month(self, id_piso, year, month):
-        """Petición de lecturas diarias de un mes específico (para importar histórico)."""
-        from datetime import date
-        fecha_inicio = date(year, month, 1)
-        if month == 12:
-            fecha_fin = date(year + 1, 1, 1)
-        else:
-            fecha_fin = date(year, month + 1, 1)
-        return await self._fetch_lecturas(
-            id_piso,
-            fecha_inicio.strftime("%Y-%m-%d"),
-            fecha_fin.strftime("%Y-%m-%d"),
         )

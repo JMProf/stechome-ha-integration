@@ -1,1 +1,6 @@
 DOMAIN = "stechome"
+
+CONF_DAILY_REFRESH_TIME = "daily_refresh_time"
+CONF_DAILY_REFRESH_DAYS_BACK = "daily_refresh_days_back"
+DEFAULT_DAILY_REFRESH_TIME = "00:30"
+DEFAULT_DAILY_REFRESH_DAYS_BACK = 1

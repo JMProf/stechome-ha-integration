@@ -1,23 +1,27 @@
 import voluptuous as vol
 from homeassistant import config_entries
-from .const import DOMAIN
+from homeassistant.data_entry_flow import FlowResult
+
+from .const import (
+    DOMAIN,
+    CONF_DAILY_REFRESH_TIME,
+    CONF_DAILY_REFRESH_DAYS_BACK,
+    DEFAULT_DAILY_REFRESH_TIME,
+    DEFAULT_DAILY_REFRESH_DAYS_BACK,
+)
 from .api import StechomeAPI
 
-CONF_DAILY_REFRESH_TIME = "daily_refresh_time"
-CONF_DAILY_REFRESH_DAYS_BACK = "daily_refresh_days_back"
-DEFAULT_DAILY_REFRESH_TIME = "00:30"
-DEFAULT_DAILY_REFRESH_DAYS_BACK = 1
 
 class StechomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Flujo de configuración para Stechome."""
     VERSION = 1
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(self, user_input=None) -> FlowResult:
         """Paso inicial de configuración por el usuario."""
         errors = {}
 
         if user_input is not None:
-            api = StechomeAPI(user_input["username"], user_input["password"], self.hass)
+            api = StechomeAPI(user_input["username"], user_input["password"])
             id_piso = await api.async_authenticate()
 
             if id_piso:
@@ -27,31 +31,33 @@ class StechomeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "username": user_input["username"],
                         "password": user_input["password"],
                         "id_piso": id_piso
-                    }
+                    },
                 )
             errors["base"] = "auth_error"
 
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema({
-                vol.Required("username"): str,
-                vol.Required("password"): str,
-            }),
-            errors=errors
+            data_schema=vol.Schema(
+                {
+                    vol.Required("username"): str,
+                    vol.Required("password"): str,
+                }
+            ),
+            errors=errors,
         )
 
     @staticmethod
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(config_entry) -> "StechomeOptionsFlow":
         return StechomeOptionsFlow(config_entry)
 
 
 class StechomeOptionsFlow(config_entries.OptionsFlow):
     """Opciones para refresco diario automático."""
 
-    def __init__(self, config_entry):
+    def __init__(self, config_entry) -> None:
         self._config_entry = config_entry
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(self, user_input=None) -> FlowResult:
         errors = {}
 
         if user_input is not None:

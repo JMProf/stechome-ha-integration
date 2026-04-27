@@ -1,21 +1,21 @@
 import logging
 from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.components import persistent_notification
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
 from .api import StechomeAPI
 from .coordinator import StechomeDataUpdateCoordinator
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_DAILY_REFRESH_TIME,
+    CONF_DAILY_REFRESH_DAYS_BACK,
+    DEFAULT_DAILY_REFRESH_TIME,
+    DEFAULT_DAILY_REFRESH_DAYS_BACK,
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-CONF_DAILY_REFRESH_TIME = "daily_refresh_time"
-CONF_DAILY_REFRESH_DAYS_BACK = "daily_refresh_days_back"
-DEFAULT_DAILY_REFRESH_TIME = "00:30"
-DEFAULT_DAILY_REFRESH_DAYS_BACK = 1
 
 
 def _notification_id(entry: ConfigEntry) -> str:
@@ -73,9 +73,10 @@ async def _async_daily_refresh(
     if end < start:
         _LOGGER.warning("Refresco diario omitido por rango inválido: %s a %s", start, end)
         return
+    _LOGGER.info("Iniciando refresco diario ACS: %s a %s", start, end)
     try:
         await coordinator.async_import_acs_range(start, end)
-        await coordinator.async_request_refresh()
+        _LOGGER.info("Refresco diario ACS completado correctamente")
         await _async_dismiss_refresh_error_notification(hass, entry)
     except Exception as exc:  # noqa: BLE001
         _LOGGER.error("Refresco diario Stechome fallido: %s", exc)
@@ -90,36 +91,40 @@ def _schedule_daily_refresh(
     minute: int,
     days_back: int,
 ):
+    @callback
     def _on_time(_now):
         hass.async_create_task(_async_daily_refresh(hass, entry, coordinator, days_back))
 
     return async_track_time_change(hass, _on_time, hour=hour, minute=minute, second=0)
 
 
-async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    await hass.config_entries.async_reload(entry.entry_id)
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reprograma el scheduler diario sin recargar la integración completa."""
+    coordinator: StechomeDataUpdateCoordinator = hass.data[DOMAIN].get(entry.entry_id)
+    if coordinator is None:
+        return
+    if coordinator.unsub_daily_refresh:
+        coordinator.unsub_daily_refresh()
+    hour, minute, days_back = _get_daily_options(entry)
+    coordinator.unsub_daily_refresh = _schedule_daily_refresh(
+        hass, entry, coordinator, hour, minute, days_back
+    )
+    _LOGGER.info(
+        "Opciones actualizadas: refresco diario reprogramado a las %02d:%02d (%d dias hacia atras)",
+        hour,
+        minute,
+        days_back,
+    )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Configura Stechome desde una entrada de configuración."""
-    api = StechomeAPI(entry.data["username"], entry.data["password"], hass)
+    api = StechomeAPI(entry.data["username"], entry.data["password"])
     coordinator = StechomeDataUpdateCoordinator(hass, api, entry.data["id_piso"])
-
-    await coordinator.async_config_entry_first_refresh()
-
-    entity_reg = er.async_get(hass)
-    for legacy_unique_id in (
-        f"{coordinator.id_piso}_LECTURA_ACS",
-        f"{coordinator.id_piso}_LECTURA_CALEF",
-    ):
-        legacy_entity_id = entity_reg.async_get_entity_id("sensor", DOMAIN, legacy_unique_id)
-        if legacy_entity_id:
-            entity_reg.async_remove(legacy_entity_id)
-            _LOGGER.info("Entidad heredada eliminada: %s", legacy_entity_id)
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
-    entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     hour, minute, days_back = _get_daily_options(entry)
     coordinator.unsub_daily_refresh = _schedule_daily_refresh(

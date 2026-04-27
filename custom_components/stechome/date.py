@@ -28,6 +28,10 @@ class _StechomeBaseDateEntity(CoordinatorEntity, DateEntity):
             model="Modulo de Contadores",
         )
 
+    @property
+    def available(self) -> bool:
+        return True
+
 
 class StechomeImportStartDateEntity(_StechomeBaseDateEntity):
     _attr_name = "Stechome Inicio importacion ACS"

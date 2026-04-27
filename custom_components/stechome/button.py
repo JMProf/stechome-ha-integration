@@ -23,6 +23,9 @@ class StechomeImportACSButton(CoordinatorEntity, ButtonEntity):
             model="Modulo de Contadores",
         )
 
+    @property
+    def available(self) -> bool:
+        return True
+
     async def async_press(self) -> None:
         await self.coordinator.async_import_acs_selected_range()
-        await self.coordinator.async_request_refresh()
