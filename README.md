@@ -34,7 +34,7 @@ La integración está pensada para registrar el consumo de ACS dentro del panel 
 
 ## Limitaciones
 
-- Por ahora, únicamente se puede registrar el consumo de ACS. Próximamente se añadirá el consumo de calefacción.
+- Por ahora, únicamente se puede registrar el consumo de ACS.
 - El consumo de agua **no se mide en tiempo real**, pues la API de Stechome publica la lectura a día vencido, es decir, sólo es posible ver el consumo total de un día anterior.
 - La integración funciona cuando se tiene un único piso dentro del servicio de Stechome.
 
@@ -59,9 +59,9 @@ La integración está pensada para registrar el consumo de ACS dentro del panel 
 
 ### Instalación manual
 
-1. Descarga el release y descomprímelo.
+1. Descarga el release.
 2. En Home Assistant, dentro de la carpeta `custom_components`, crea una carpeta llamada `stechome`.
-3. Sube a esa carpeta el contenido de la carpeta `stechome`.
+3. Sube a esa carpeta el contenido del release.
 4. Reinicia Home Assistant.
 
 Ten en cuenta que, con este método, la integración no se actualizará automáticamente.
@@ -80,11 +80,11 @@ Si todo va bien, se creará un dispositivo con sus sensores asociados.
 ### Refresco automático diario
 
 Puedes configurar en las opciones de la integración:
-- Hora diaria (`HH:MM`) usando la zona horaria de Home Assistant.
+- Hora diaria (`HH:MM`) usando la zona horaria de Home Assistant en formato 24 horas.
 - Días hacia atrás (`1` a `7`) para refrescar desde ese punto hasta ayer.
 
 Por defecto:
-- Hora: `00:30`
+- Hora: `12:00`
 - Días hacia atrás: `1` (sólo ayer)
 
 ### Importación de histórico de datos
@@ -103,7 +103,7 @@ Consideraciones:
 ### Integración en el panel de Energía
 
 1. Ve a `Settings > Dashboards > Energy`.
-2. En la sección de agua, selecciona el sensor `ACS` de Stechome. No importa que su estado sea "Desconocido".
+2. En la sección de agua, selecciona el sensor `ACS` de Stechome.
 
 ## Cómo funciona internamente
 
@@ -125,7 +125,7 @@ Esto permite que Home Assistant gestione estadísticas de largo plazo sin que te
 
 **El sensor `ACS` se muestra como "Desconocido"**
 
-> Estoy trabajando en ello, de todas formas, no supone ningún problema para que el panel de Energía realice los calculos de consumo diarios.
+> Es posible que no hayas importado registros anteriores o el refresco diario todavía no se haya ejecutado. Puedes utilizar igualmente la entidad en el panel de Energía y, cuando importes registros o se lance el refreso diario, el sensor tomará el último valor acumulado en m³.
 
 **Tengo algunos días sin consumo**
 
