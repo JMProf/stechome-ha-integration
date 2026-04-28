@@ -1,6 +1,6 @@
 {
   "name": "Stechome",
-  "content_in_root": false,
+  "content_in_root": true,
   "render_readme": true,
   "zip_release": true,
   "filename": "stechome.zip",
