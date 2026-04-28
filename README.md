@@ -125,7 +125,7 @@ Esto permite que Home Assistant gestione estadísticas de largo plazo sin que te
 
 **El sensor `ACS` se muestra como "Desconocido"**
 
-> Es posible que no hayas importado registros anteriores o el refresco diario todavía no se haya ejecutado. Puedes utilizar igualmente la entidad en el panel de Energía y, cuando importes registros o se lance el refreso diario, el sensor tomará el último valor acumulado en m³.
+> Es posible que no hayas importado registros anteriores o el refresco diario todavía no se haya ejecutado. También ocurre cuando se reinicia Home Assistant. No importa, puedes utilizar igualmente la entidad en el panel de Energía aunque aparezca una advertencia y, cuando importes registros o se lance el refreso diario, el sensor tomará el último valor acumulado en m³.
 
 **Tengo algunos días sin consumo**
 
